@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const notes = require("./db/db.json");
 const path = require("path");
+const util = require("util");
 
 const PORT = process.env.PORT || 3001;
 const app = express();
@@ -12,13 +13,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 function writeNewNote(body, notesArray) {
-  const note = body.note;
-  notesArray.push(note);
-
-  fs.writeFileSync(
-    path.join(__dirname, "./db/db.json"),
-    JSON.stringify({ notes: notesArray }, null, 2)
-  );
+  fs.writeFile(destination, JSON.stringify(content, null, 4), (err) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.info(`\nData written to ${destination}`);
+    }
+  });
 }
 
 const readAndAppend = (content, file) => {
@@ -41,9 +42,14 @@ app.get("/notes", (req, res) =>
   res.sendFile(path.join(__dirname, "public/notes.html"))
 );
 
-app.post("/notes", (req, res) => {
-  req.body.id = notes.length.toString();
+const readFromFile = util.promisify(fs.readFile);
 
+app.get("/api/notes", (req, res) => {
+  console.info(`${req.method} request received for notes`);
+  readFromFile("./db/db.json").then((data) => res.json(JSON.parse(data)));
+});
+
+app.post("/notes", (req, res) => {
   const { title, text } = req.body;
 
   if (title && text) {
