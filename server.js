@@ -1,69 +1,79 @@
+
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
-const util = require("util");
-
 const PORT = process.env.PORT || 3001;
+
+
 const app = express();
+
+
+app.use(express.urlencoded({ extended: true }));
+
+app.use(express.json());
 
 app.use(express.static("public"));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-function writeNewNote(body, notesArray) {
-  fs.writeFile(destination, JSON.stringify(content, null, 4), (err) => {
-    if (err) {
-      console.error(err);
-    } else {
-      console.info(`\nData written to ${destination}`);
-    }
-  });
+const { notes } = require("./db/db.json");
+
+
+function createNewNote(body, notesArray) {
+  const note = body;
+  notesArray.push(note);
+
+  
+  fs.writeFileSync(
+    path.join(__dirname, "./db/db.json"),
+    JSON.stringify({ notes: notesArray }, null, 2)
+  );
+  
+  return note;
 }
 
-const readAndAppend = (content, file) => {
-  fs.readFile(file, "utf8", (err, data) => {
-    if (err) {
-      console.error(err);
-    } else {
-      const parsedData = JSON.parse(data);
-      parsedData.push(content);
-      writeNewNote(file, parsedData);
-    }
-  });
-};
 
-//ROUTES
+function validateNote(note) {
+  if (!note.title || typeof note.title !== "string") {
+    return false;
+  }
+  if (!note.text || typeof note.text !== "string") {
+    return false;
+  }
+  return true;
+}
 
-app.get("/", (req, res) => res.sendFile(path.join(__dirname, "/public/index.html")));
-
-app.get("/notes", (req, res) =>
-  res.sendFile(path.join(__dirname, "public/notes.html"))
-);
-
-const readFromFile = util.promisify(fs.readFile);
 
 app.get("/api/notes", (req, res) => {
-  console.info(`${req.method} request received for notes`);
-  readFromFile("./db/db.json").then((data) => res.json(JSON.parse(data)));
+  res.json(notes);
 });
 
-app.post("/notes", (req, res) => {
-  const { title, text } = req.body;
 
-  if (title && text) {
-    const newNote = {
-      title,
-      text,
-    };
+app.post("/api/notes", (req, res) => {
+  
+  req.body.id = notes.length.toString();
 
-    readAndAppend(newNote, "./db/db.json");
-    res.json(`Note added successfully`);
+ 
+  if (!validateNote(req.body)) {
+    res.status(400).send("The note is not properly formatted.");
   } else {
-    res.error("Error adding note");
+    
+    const note = createNewNote(req.body, notes);
+
+    res.json(note);
   }
 });
 
+
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "./public/index.html"));
+});
+
+
+app.get("/notes", (req, res) => {
+  res.sendFile(path.join(__dirname, "./public/notes.html"));
+});
+
+
 app.listen(PORT, () => {
-  console.log(`Love you Dad, on port ${PORT}`);
+  console.log(`listening to dad on ${PORT}!`);
 });
